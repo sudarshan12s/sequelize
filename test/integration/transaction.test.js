@@ -824,29 +824,37 @@ if (current.dialect.supports.transactions) {
             t2Spy = sinon.spy();
 
           await this.sequelize.sync({ force: true });
-          await User.create({ username: 'jan' });
+          const { id } = await User.create({ username: 'jan' });
           const t1 = await this.sequelize.transaction();
-
-          const t1Jan = await User.findOne({
-            where: {
-              username: 'jan'
-            },
-            lock: t1.LOCK.UPDATE,
-            transaction: t1
-          });
+          let t1Jan;
+          if (dialect === 'oracle') {
+            t1Jan = await User.findByPk(id, { transaction: t1, lock: t1.LOCK.UPDATE });
+          } else {
+            t1Jan = await User.findOne({
+              where: {
+                username: 'jan'
+              },
+              lock: t1.LOCK.UPDATE,
+              transaction: t1
+            });
+          }
 
           const t2 = await this.sequelize.transaction({
             isolationLevel: Transaction.ISOLATION_LEVELS.READ_COMMITTED
           });
 
           await Promise.all([(async () => {
-            await User.findOne({
-              where: {
-                username: 'jan'
-              },
-              lock: t2.LOCK.UPDATE,
-              transaction: t2
-            });
+              if (dialect === 'oracle') {
+                  await User.findByPk(id, { transaction: t2, lock: t2.LOCK.UPDATE });
+              } else {
+                  await User.findOne({
+                    where: {
+                      username: 'jan'
+                    },
+                    lock: t2.LOCK.UPDATE,
+                    transaction: t2
+                  });
+              }
 
             t2Spy();
             await t2.commit();
@@ -928,7 +936,12 @@ if (current.dialect.supports.transactions) {
           await this.sequelize.transaction(t1 => {
 
             if (current.dialect.supports.lockOuterJoinFailure) {
-
+              let error;
+                if (dialect === 'oracle') {
+                    error = 'ORA-02014: cannot select FOR UPDATE from view with DISTINCT, GROUP BY, etc';
+                } else {
+                    error = 'FOR UPDATE cannot be applied to the nullable side of an outer join';
+                }
               return expect(User.findOne({
                 where: {
                   username: 'John'
@@ -936,7 +949,7 @@ if (current.dialect.supports.transactions) {
                 include: [Task],
                 lock: t1.LOCK.UPDATE,
                 transaction: t1
-              })).to.be.rejectedWith('FOR UPDATE cannot be applied to the nullable side of an outer join');
+              })).to.be.rejectedWith(error);
             }
 
             return User.findOne({
