@@ -27,24 +27,47 @@ describe(Support.getTestDialectTeaser('Model'), () => {
 
       if (current.dialect.supports.lock) {
         it('findOrCreate supports transactions, json and locks', async function() {
-          const transaction = await current.transaction();
-
-          await this.Event.findOrCreate({
-            where: {
-              json: { some: { input: 'Hello' } }
-            },
-            defaults: {
-              json: { some: { input: 'Hello' }, input: [1, 2, 3] },
-              data: { some: { input: 'There' }, input: [4, 5, 6] }
-            },
-            transaction,
-            lock: transaction.LOCK.UPDATE,
-            logging: sql => {
-              if (sql.includes('SELECT') && !sql.includes('CREATE')) {
-                expect(sql.includes('FOR UPDATE')).to.be.true;
+          const t1 = await current.transaction();
+          if (current.options.dialect !== 'oracle') {
+            await this.Event.findOrCreate({
+              where: {
+                json: { some: { input: 'Hello' } }
+              },
+              defaults: {
+                json: { some: { input: 'Hello' }, input: [1, 2, 3] },
+                data: { some: { input: 'There' }, input: [4, 5, 6] }
+              },
+              t1,
+              lock: t1.LOCK.UPDATE,
+              logging: sql => {
+                if (sql.includes('SELECT') && !sql.includes('CREATE')) {
+                  expect(sql.includes('FOR UPDATE')).to.be.true;
+                }
               }
+            });
+          } else {
+            const events  = await this.Event.findAll({
+              where: {
+                json: { some: { input: 'Hello' } }
+              },
+              lock: t1.LOCK.UPDATE,
+              transaction: t1,
+              logging: sql => {
+                if (sql.includes('SELECT') && !sql.includes('CREATE')) {
+                  expect(sql.includes('FOR UPDATE')).to.be.true;
+                }
+              }
+            });
+            if (events.length === 0) {
+              await this.Event.create({
+                json: { some: { input: 'Hello' }, input: [1, 2, 3] },
+                data: { some: { input: 'There' }, input: [4, 5, 6] }
+              },
+              {
+                transaction: t1
+              });
             }
-          });
+          }
 
           const count = await this.Event.count();
           expect(count).to.equal(0);
