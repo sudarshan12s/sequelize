@@ -28,17 +28,18 @@ describe(Support.getTestDialectTeaser('Model'), () => {
       if (current.dialect.supports.lock) {
         it('findOrCreate supports transactions, json and locks', async function() {
           const t1 = await current.transaction();
-          // SQL constructs 'FOR UPDATE' with 'FETCH' doesn't work for oracle dialect,
-          // hence use findByPk which doesnt use 'LIMIT; or 'FETCH' in SQL generation
+          const whereValues = {
+            json: { some: { input: 'Hello' } }
+          };
+          const defaultValues = {
+            json: { some: { input: 'Hello' }, input: [1, 2, 3] },
+            data: { some: { input: 'There' }, input: [4, 5, 6] }
+          };
+
           if (current.options.dialect !== 'oracle') {
             await this.Event.findOrCreate({
-              where: {
-                json: { some: { input: 'Hello' } }
-              },
-              defaults: {
-                json: { some: { input: 'Hello' }, input: [1, 2, 3] },
-                data: { some: { input: 'There' }, input: [4, 5, 6] }
-              },
+              where: whereValues,
+              defaults: defaultValues,
               t1,
               lock: t1.LOCK.UPDATE,
               logging: sql => {
@@ -49,9 +50,7 @@ describe(Support.getTestDialectTeaser('Model'), () => {
             });
           } else {
             const events  = await this.Event.findAll({
-              where: {
-                json: { some: { input: 'Hello' } }
-              },
+              where: whereValues,
               lock: t1.LOCK.UPDATE,
               transaction: t1,
               logging: sql => {
@@ -60,14 +59,12 @@ describe(Support.getTestDialectTeaser('Model'), () => {
                 }
               }
             });
+
             if (events.length === 0) {
-              await this.Event.create({
-                json: { some: { input: 'Hello' }, input: [1, 2, 3] },
-                data: { some: { input: 'There' }, input: [4, 5, 6] }
-              },
-              {
-                transaction: t1
-              });
+              await this.Event.create(defaultValues,
+                {
+                  transaction: t1
+                });
             }
           }
 

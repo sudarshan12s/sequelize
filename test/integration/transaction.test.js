@@ -828,8 +828,8 @@ if (current.dialect.supports.transactions) {
           const t1 = await this.sequelize.transaction();
 
           let t1Jan;
-          // SQL constructs 'FOR UPDATE' with 'FETCH' doesn't work for oracle dialect,
-          // hence use findByPk which doesnt use 'LIMIT; or 'FETCH' in SQL generation
+          // SQL constructs 'FOR UPDATE' with 'FETCH' doesn't work for Oracle dialect,
+          // hence use findByPk which doesn't use 'LIMIT' or 'FETCH' in SQL generation
           if (dialect === 'oracle') {
             t1Jan = await User.findByPk(id, { transaction: t1, lock: t1.LOCK.UPDATE });
           } else {
@@ -884,7 +884,7 @@ if (current.dialect.supports.transactions) {
 
             await this.sequelize.sync({ force: true });
 
-            await Promise.all([
+            const [id1, id2] = await Promise.all([
               User.create(
                 { username: 'jan' }
               ),
@@ -893,25 +893,44 @@ if (current.dialect.supports.transactions) {
               )
             ]);
 
+            let results;
             const t1 = await this.sequelize.transaction();
 
-            const results = await User.findAll({
-              limit: 1,
-              lock: true,
-              transaction: t1
-            });
+            if (dialect === 'oracle') {
+              results = await User.findByPk(id1.id, { transaction: t1, lock: true });
+            } else {
+              results = await User.findAll({
+                limit: 1,
+                lock: true,
+                transaction: t1
+              });
+            }
 
-            const firstUserId = results[0].id;
+            let  firstUserId;
+            if (dialect === 'oracle') {
+              firstUserId = results.id;
+            } else {
+              firstUserId = results[0].id;
+            }
             const t2 = await this.sequelize.transaction();
-
-            const secondResults = await User.findAll({
-              limit: 1,
-              lock: true,
-              skipLocked: true,
-              transaction: t2
-            });
-
-            expect(secondResults[0].id).to.not.equal(firstUserId);
+            let secondResults;
+            if (dialect === 'oracle') {
+              secondResults = await User.findByPk(id2.id, { transaction: t2, lock: true });
+            } else {
+              secondResults = await User.findAll({
+                limit: 1,
+                lock: true,
+                skipLocked: true,
+                transaction: t2
+              });
+            }
+            let  secondUserId;
+            if (dialect === 'oracle') {
+              secondUserId = secondResults.id;
+            } else {
+              secondUserId = secondResults[0].id;
+            }
+            expect(secondUserId).to.not.equal(firstUserId);
 
             await Promise.all([
               t1.commit(),

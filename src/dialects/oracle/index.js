@@ -31,6 +31,7 @@ OracleDialect.prototype.supports = _.merge(_.cloneDeep(AbstractDialect.prototype
   lock: true,
   lockOuterJoinFailure: true,
   forShare: ' FOR UPDATE',
+  skipLocked: true,
   index: {
     collate: false,
     length: false,
