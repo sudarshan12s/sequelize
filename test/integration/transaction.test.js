@@ -826,7 +826,10 @@ if (current.dialect.supports.transactions) {
           await this.sequelize.sync({ force: true });
           const { id } = await User.create({ username: 'jan' });
           const t1 = await this.sequelize.transaction();
+
           let t1Jan;
+          // SQL constructs 'FOR UPDATE' with 'FETCH' doesn't work for oracle dialect,
+          // hence use findByPk which doesnt use 'LIMIT; or 'FETCH' in SQL generation
           if (dialect === 'oracle') {
             t1Jan = await User.findByPk(id, { transaction: t1, lock: t1.LOCK.UPDATE });
           } else {
@@ -844,17 +847,17 @@ if (current.dialect.supports.transactions) {
           });
 
           await Promise.all([(async () => {
-              if (dialect === 'oracle') {
-                  await User.findByPk(id, { transaction: t2, lock: t2.LOCK.UPDATE });
-              } else {
-                  await User.findOne({
-                    where: {
-                      username: 'jan'
-                    },
-                    lock: t2.LOCK.UPDATE,
-                    transaction: t2
-                  });
-              }
+            if (dialect === 'oracle') {
+              await User.findByPk(id, { transaction: t2, lock: t2.LOCK.UPDATE });
+            } else {
+              await User.findOne({
+                where: {
+                  username: 'jan'
+                },
+                lock: t2.LOCK.UPDATE,
+                transaction: t2
+              });
+            }
 
             t2Spy();
             await t2.commit();
@@ -937,11 +940,11 @@ if (current.dialect.supports.transactions) {
 
             if (current.dialect.supports.lockOuterJoinFailure) {
               let error;
-                if (dialect === 'oracle') {
-                    error = 'ORA-02014: cannot select FOR UPDATE from view with DISTINCT, GROUP BY, etc';
-                } else {
-                    error = 'FOR UPDATE cannot be applied to the nullable side of an outer join';
-                }
+              if (dialect === 'oracle') {
+                error = 'ORA-02014: cannot select FOR UPDATE from view with DISTINCT, GROUP BY, etc';
+              } else {
+                error = 'FOR UPDATE cannot be applied to the nullable side of an outer join';
+              }
               return expect(User.findOne({
                 where: {
                   username: 'John'

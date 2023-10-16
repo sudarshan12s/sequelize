@@ -28,6 +28,8 @@ describe(Support.getTestDialectTeaser('Model'), () => {
       if (current.dialect.supports.lock) {
         it('findOrCreate supports transactions, json and locks', async function() {
           const t1 = await current.transaction();
+          // SQL constructs 'FOR UPDATE' with 'FETCH' doesn't work for oracle dialect,
+          // hence use findByPk which doesnt use 'LIMIT; or 'FETCH' in SQL generation
           if (current.options.dialect !== 'oracle') {
             await this.Event.findOrCreate({
               where: {
@@ -71,7 +73,7 @@ describe(Support.getTestDialectTeaser('Model'), () => {
 
           const count = await this.Event.count();
           expect(count).to.equal(0);
-          await transaction.commit();
+          await t1.commit();
           const count0 = await this.Event.count();
           expect(count0).to.equal(1);
         });
