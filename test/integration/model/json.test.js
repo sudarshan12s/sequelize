@@ -59,7 +59,6 @@ describe(Support.getTestDialectTeaser('Model'), () => {
                 }
               }
             });
-
             if (events.length === 0) {
               await this.Event.create(defaultValues,
                 {

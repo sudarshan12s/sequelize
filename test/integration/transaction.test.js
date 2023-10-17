@@ -894,9 +894,9 @@ if (current.dialect.supports.transactions) {
               )
             ]);
 
-            let results;
             const t1 = await this.sequelize.transaction();
 
+            let results;
             if (dialect === 'oracle') {
               results = await User.findByPk(id1.id, { transaction: t1, lock: true });
             } else {
@@ -913,7 +913,9 @@ if (current.dialect.supports.transactions) {
             } else {
               firstUserId = results[0].id;
             }
+
             const t2 = await this.sequelize.transaction();
+
             let secondResults;
             if (dialect === 'oracle') {
               secondResults = await User.findByPk(id2.id, { transaction: t2, lock: true });
@@ -931,6 +933,7 @@ if (current.dialect.supports.transactions) {
             } else {
               secondUserId = secondResults[0].id;
             }
+
             expect(secondUserId).to.not.equal(firstUserId);
 
             await Promise.all([
@@ -959,12 +962,14 @@ if (current.dialect.supports.transactions) {
           await this.sequelize.transaction(t1 => {
 
             if (current.dialect.supports.lockOuterJoinFailure) {
+
               let error;
               if (dialect === 'oracle') {
                 error = 'ORA-02014: cannot select FOR UPDATE from view with DISTINCT, GROUP BY, etc';
               } else {
                 error = 'FOR UPDATE cannot be applied to the nullable side of an outer join';
               }
+
               return expect(User.findOne({
                 where: {
                   username: 'John'
