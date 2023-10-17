@@ -27,22 +27,22 @@ describe(Support.getTestDialectTeaser('Model'), () => {
 
       if (current.dialect.supports.lock) {
         it('findOrCreate supports transactions, json and locks', async function() {
-          const t1 = await current.transaction();
+          const transaction = await current.transaction();
 
-          const whereValues = {
-            json: { some: { input: 'Hello' } }
-          };
-          const defaultValues = {
-            json: { some: { input: 'Hello' }, input: [1, 2, 3] },
-            data: { some: { input: 'There' }, input: [4, 5, 6] }
-          };
+          const data = {
+              json: { some: { input: 'Hello' } }
+            },
+            default_values = {
+              json: { some: { input: 'Hello' }, input: [1, 2, 3] },
+              data: { some: { input: 'There' }, input: [4, 5, 6] }
+            };
 
           if (current.options.dialect !== 'oracle') {
             await this.Event.findOrCreate({
-              where: whereValues,
-              defaults: defaultValues,
-              t1,
-              lock: t1.LOCK.UPDATE,
+              where: data,
+              defaults: default_values,
+              transaction,
+              lock: transaction.LOCK.UPDATE,
               logging: sql => {
                 if (sql.includes('SELECT') && !sql.includes('CREATE')) {
                   expect(sql.includes('FOR UPDATE')).to.be.true;
@@ -51,9 +51,9 @@ describe(Support.getTestDialectTeaser('Model'), () => {
             });
           } else {
             const events  = await this.Event.findAll({
-              where: whereValues,
-              lock: t1.LOCK.UPDATE,
-              transaction: t1,
+              where: data,
+              lock: transaction.LOCK.UPDATE,
+              transaction,
               logging: sql => {
                 if (sql.includes('SELECT') && !sql.includes('CREATE')) {
                   expect(sql.includes('FOR UPDATE')).to.be.true;
@@ -61,16 +61,15 @@ describe(Support.getTestDialectTeaser('Model'), () => {
               }
             });
             if (events.length === 0) {
-              await this.Event.create(defaultValues,
-                {
-                  transaction: t1
-                });
+              await this.Event.create(default_values, {
+                transaction
+              });
             }
           }
 
           const count = await this.Event.count();
           expect(count).to.equal(0);
-          await t1.commit();
+          await transaction.commit();
           const count0 = await this.Event.count();
           expect(count0).to.equal(1);
         });
