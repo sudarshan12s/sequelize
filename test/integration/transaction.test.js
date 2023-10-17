@@ -828,8 +828,9 @@ if (current.dialect.supports.transactions) {
           const t1 = await this.sequelize.transaction();
 
           let t1Jan;
-          // SQL constructs 'FOR UPDATE' with 'FETCH' doesn't work for Oracle dialect,
-          // hence use findByPk which doesn't use 'LIMIT' or 'FETCH' in SQL generation
+          // SQL constructs 'FOR UPDATE' with 'FETCH'/'ORDER BY' doesn't work
+          // for Oracle dialect, hence using findByPk just to show the lock
+          // behaviour and it doesn't generate above constructs.
           if (dialect === 'oracle') {
             t1Jan = await User.findByPk(id, { transaction: t1, lock: t1.LOCK.UPDATE });
           } else {
