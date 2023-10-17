@@ -28,6 +28,7 @@ describe(Support.getTestDialectTeaser('Model'), () => {
       if (current.dialect.supports.lock) {
         it('findOrCreate supports transactions, json and locks', async function() {
           const t1 = await current.transaction();
+
           const whereValues = {
             json: { some: { input: 'Hello' } }
           };
