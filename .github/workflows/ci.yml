@@ -55,7 +55,7 @@ jobs:
       fail-fast: false
       matrix:
         oracle-version: [18, 21]
-        node-version: [10, 18]
+        node-version: [14, 18]
     name: Oracle DB ${{ matrix.oracle-version }} (Node ${{ matrix.node-version }})
     runs-on: ubuntu-latest
     env:
@@ -67,13 +67,14 @@ jobs:
       SEQ_ORACLE_PORT: 1521
       LD_LIBRARY_PATH: ${{ github.workspace }}/.oracle/instantclient
       UV_THREADPOOL_SIZE: 128
+      NODE_GYP_FORCE_VERSION: latest
     steps:
       - uses: actions/checkout@v3
       - uses: actions/setup-node@v3
         with:
           node-version: ${{ matrix.node-version }}
-      - run: yarn global add node-gyp --ignore-engines
-      - run: yarn install --frozen-lockfile --ignore-engines
+      - run: yarn add node-gyp --dev --ignore-engines
+      - run: yarn install --ignore-engines
       - if: matrix.oracle-version == '18'
         name: Install Local Oracle DB 18
         run: yarn start-oracle-oldest
